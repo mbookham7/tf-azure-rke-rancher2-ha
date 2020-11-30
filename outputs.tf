@@ -1,8 +1,2 @@
-output "vnet_id" {
-  value = module.vnet-main.vnet_id
-}
 
-output "vnet_subnets" {
-  value = module.vnet-main.vnet_subnets
-}
-
+output "tls_private_key" { value = tls_private_key.bootstrap_private_key.private_key_pem }
