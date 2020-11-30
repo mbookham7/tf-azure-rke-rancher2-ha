@@ -84,7 +84,3 @@ variable "docker_version" {
 variable "nsg_name" {
   default = "rancher-nsg"
 }
-
-variable "security_group_id" {
-  default = ""
-}

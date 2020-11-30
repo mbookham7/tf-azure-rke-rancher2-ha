@@ -177,7 +177,7 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
 resource "azurerm_network_interface_security_group_association" "nisga-master" {
   count                     = var.node_master_count
   network_interface_id      = azurerm_network_interface.network_interfaces_node_master[count.index].id
-  network_security_group_id = var.security_group_id
+  network_security_group_id = azurerm_network_security_group.rke_nsg.id
 }
 
 resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
@@ -266,7 +266,7 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
 resource "azurerm_network_interface_security_group_association" "nisga-worker" {
   count                     = var.node_master_count
   network_interface_id      = azurerm_network_interface.network_interfaces_node_worker[count.index].id
-  network_security_group_id = var.security_group_id
+  network_security_group_id = azurerm_network_security_group.rke_nsg.id
 }
 
 resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" { 
@@ -353,9 +353,9 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
 }
 
 resource "azurerm_network_interface_security_group_association" "nisga-all" {
-  count                     = var.node_master_count
+  count                     = var.node_all_count
   network_interface_id      = azurerm_network_interface.network_interfaces_node_all[count.index].id
-  network_security_group_id = var.security_group_id
+  network_security_group_id = azurerm_network_security_group.rke_nsg.id
 }
 
 resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
