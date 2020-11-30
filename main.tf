@@ -158,9 +158,9 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
 
 resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
   count                 = var.node_master_count
-  name                  = "${var.name}-node-${count.index}"
+  name                  = "${var.prefix}-node-master-${count.index}"
   admin_username        = var.node_username
-  computer_name         = "${var.name}-node-${count.index}"
+  computer_name         = "${var.prefix}-node-master-${count.index}"
   location              = var.location
   availability_set_id   = azurerm_availability_set.avset.id
   resource_group_name   = azurerm_resource_group.resource_group.name
@@ -175,7 +175,7 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
   }
 
   os_disk {
-    name                 = "${var.name}-osdisk-${count.index}"
+    name                 = "master-osdisk-${count.index}"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -185,8 +185,9 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
   admin_ssh_key {
     username   = var.node_username
     public_key = tls_private_key.bootstrap_private_key.public_key_openssh
+  }
 
-  tags {
+  tags = {
     K8sRoles = "controlplane,etcd"
   }
   
@@ -239,17 +240,14 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
 
 resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" { 
   count                 = var.node_worker_count
-  name                  = "${var.name}-node-${count.index}"
+  name                  = "${var.prefix}-node--worker${count.index}"
   admin_username        = var.node_username
-  computer_name         = "${var.name}-node-${count.index}"
+  computer_name         = "${var.prefix}-node-worker-${count.index}"
   location              = var.location
   availability_set_id   = azurerm_availability_set.avset.id
   resource_group_name   = azurerm_resource_group.resource_group.name
-  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_master.*.id, count.index)]
+  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_worker.*.id, count.index)]
   size                  = var.size
- 
- # Uncomment this line to delete the OS disk automatically when deleting the VM
-  delete_os_disk_on_termination = true
 
   source_image_reference {
     publisher = "Canonical"
@@ -259,7 +257,7 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" {
   }
 
   os_disk {
-    name                 = "${var.name}-osdisk-${count.index}"
+    name                 = "worker-osdisk-${count.index}"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -268,10 +266,10 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" {
 
   admin_ssh_key {
     username   = var.node_username
-    public_key = ls_private_key.bootstrap_private_key.public_key_openssh
+    public_key = tls_private_key.bootstrap_private_key.public_key_openssh
   }
 
-  tags {
+  tags = {
     K8sRoles = "worker"
   }
   
@@ -324,17 +322,14 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
 
 resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
   count                 = var.node_all_count
-  name                  = "${var.name}-node-${count.index}"
+  name                  = "${var.prefix}-node-all-${count.index}"
   admin_username        = var.node_username
-  computer_name         = "${var.name}-node-${count.index}"
+  computer_name         = "${var.prefix}-node-all-${count.index}"
   location              = var.location
   availability_set_id   = azurerm_availability_set.avset.id
   resource_group_name   = azurerm_resource_group.resource_group.name
-  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_master.*.id, count.index)]
+  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_all.*.id, count.index)]
   size                  = var.size  
-
- # Uncomment this line to delete the OS disk automatically when deleting the VM
- delete_os_disk_on_termination = true
 
    source_image_reference {
     publisher = "Canonical"
@@ -344,7 +339,7 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
   }
 
   os_disk {
-    name                 = "${var.name}-osdisk-${count.index}"
+    name                 = "all-osdisk-${count.index}"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
@@ -353,10 +348,10 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
 
   admin_ssh_key {
     username   = var.node_username
-    public_key = ls_private_key.bootstrap_private_key.public_key_openssh
+    public_key = tls_private_key.bootstrap_private_key.public_key_openssh
   }
 
-  tags {
+  tags = {
     K8sRoles = "controlplane,etcd,worker"
   }
   
