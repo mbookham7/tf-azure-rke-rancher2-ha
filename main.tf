@@ -156,44 +156,53 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
   backend_address_pool_id = azurerm_lb_backend_address_pool.rancher-backendpool.id
 }
 
-resource "azurerm_virtual_machine" "rancher_nodes_master" {
- count                 = var.node_master_count
- name                  = "${var.prefix}-node-master-${count.index}"
- location              = var.location
- availability_set_id   = azurerm_availability_set.avset.id
- resource_group_name   = azurerm_resource_group.resource_group.name
- network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_master.*.id, count.index)]
- vm_size               = "Standard_DS1_v2"
+resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
+  count                 = var.node_master_count
+  name                  = "${var.name}-node-${count.index}"
+  admin_username        = var.node_username
+  computer_name         = "${var.name}-node-${count.index}"
+  location              = var.location
+  availability_set_id   = azurerm_availability_set.avset.id
+  resource_group_name   = azurerm_resource_group.resource_group.name
+  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_master.*.id, count.index)]
+  size                  = var.size
 
- # Uncomment this line to delete the OS disk automatically when deleting the VM
- delete_os_disk_on_termination = true
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-focal"
+    sku       = "20_04-lts"
+    version   = "latest"
+  }
 
- storage_image_reference {
-   publisher = "Canonical"
-   offer     = "UbuntuServer"
-   sku       = "18.04-LTS"
-   version   = "latest"
- }
+  os_disk {
+    name                 = "${var.name}-osdisk-${count.index}"
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
 
- storage_os_disk {
-   name              = "masterosdisk${count.index}"
-   caching           = "ReadWrite"
-   create_option     = "FromImage"
-   managed_disk_type = "Standard_LRS"
- }
+  disable_password_authentication = true
 
-os_profile {
-        admin_username = "azureuser"
-        computer_name  = "hostname"
+  admin_ssh_key {
+    username   = var.node_username
+    public_key = tls_private_key.bootstrap_private_key.public_key_openssh
+
+  tags {
+    K8sRoles = "controlplane,etcd"
+  }
+  
+
+  provisioner "remote-exec" {
+    inline = [
+      "curl -sL https://releases.rancher.com/install-docker/${var.docker_version}.sh | sudo sh",
+      "sudo usermod -aG docker ${var.node_username}"
+    ]
+    connection {
+      host        = self.public_ip_address
+      type        = "ssh"
+      user        = var.node_username
+      private_key = tls_private_key.bootstrap_private_key.private_key_pem
     }
-
-os_profile_linux_config {
-    disable_password_authentication = true
-    ssh_keys {
-            path     = "/home/azureuser/.ssh/authorized_keys"
-            key_data = chomp(tls_private_key.bootstrap_private_key.public_key_openssh)
-        }
-}
+  }
 }
 
 # node worker
@@ -228,44 +237,57 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
   backend_address_pool_id = azurerm_lb_backend_address_pool.rancher-backendpool.id
 }
 
-resource "azurerm_virtual_machine" "rancher_nodes_worker" {
- count                 = var.node_worker_count
- name                  = "${var.prefix}-node-worker-${count.index}"
- location              = var.location
- availability_set_id   = azurerm_availability_set.avset.id
- resource_group_name   = azurerm_resource_group.resource_group.name
- network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_worker.*.id, count.index)]
- vm_size               = "Standard_DS1_v2"
-
+resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" { 
+  count                 = var.node_worker_count
+  name                  = "${var.name}-node-${count.index}"
+  admin_username        = var.node_username
+  computer_name         = "${var.name}-node-${count.index}"
+  location              = var.location
+  availability_set_id   = azurerm_availability_set.avset.id
+  resource_group_name   = azurerm_resource_group.resource_group.name
+  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_master.*.id, count.index)]
+  size                  = var.size
+ 
  # Uncomment this line to delete the OS disk automatically when deleting the VM
- delete_os_disk_on_termination = true
+  delete_os_disk_on_termination = true
 
- storage_image_reference {
-   publisher = "Canonical"
-   offer     = "UbuntuServer"
-   sku       = "18.04-LTS"
-   version   = "latest"
- }
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-focal"
+    sku       = "20_04-lts"
+    version   = "latest"
+  }
 
- storage_os_disk {
-   name              = "workerosdisk${count.index}"
-   caching           = "ReadWrite"
-   create_option     = "FromImage"
-   managed_disk_type = "Standard_LRS"
- }
+  os_disk {
+    name                 = "${var.name}-osdisk-${count.index}"
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
 
-os_profile {
-        admin_username = "azureuser"
-        computer_name  = "hostname"
+  disable_password_authentication = true
+
+  admin_ssh_key {
+    username   = var.node_username
+    public_key = ls_private_key.bootstrap_private_key.public_key_openssh
+  }
+
+  tags {
+    K8sRoles = "worker"
+  }
+  
+
+  provisioner "remote-exec" {
+    inline = [
+      "curl -sL https://releases.rancher.com/install-docker/${var.docker_version}.sh | sudo sh",
+      "sudo usermod -aG docker ${var.node_username}"
+    ]
+    connection {
+      host        = self.public_ip_address
+      type        = "ssh"
+      user        = var.node_username
+      private_key = tls_private_key.bootstrap_private_key.private_key_pem
     }
-
-os_profile_linux_config {
-    disable_password_authentication = true
-    ssh_keys {
-            path     = "/home/azureuser/.ssh/authorized_keys"
-            key_data = chomp(tls_private_key.bootstrap_private_key.public_key_openssh)
-        }
-}
+  }
 }
 
 # node all
@@ -300,42 +322,55 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
   backend_address_pool_id = azurerm_lb_backend_address_pool.rancher-backendpool.id
 }
 
-resource "azurerm_virtual_machine" "rancher_nodes_all" {
- count                 = var.node_all_count
- name                  = "${var.prefix}-node-all-${count.index}"
- location              = var.location
- availability_set_id   = azurerm_availability_set.avset.id
- resource_group_name   = azurerm_resource_group.resource_group.name
- network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_all.*.id, count.index)]
- vm_size               = "Standard_DS1_v2"
+resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
+  count                 = var.node_all_count
+  name                  = "${var.name}-node-${count.index}"
+  admin_username        = var.node_username
+  computer_name         = "${var.name}-node-${count.index}"
+  location              = var.location
+  availability_set_id   = azurerm_availability_set.avset.id
+  resource_group_name   = azurerm_resource_group.resource_group.name
+  network_interface_ids = [element(azurerm_network_interface.network_interfaces_node_master.*.id, count.index)]
+  size                  = var.size  
 
  # Uncomment this line to delete the OS disk automatically when deleting the VM
  delete_os_disk_on_termination = true
 
- storage_image_reference {
-   publisher = "Canonical"
-   offer     = "UbuntuServer"
-   sku       = "18.04-LTS"
-   version   = "latest"
- }
+   source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-focal"
+    sku       = "20_04-lts"
+    version   = "latest"
+  }
 
- storage_os_disk {
-   name              = "allosdisk${count.index}"
-   caching           = "ReadWrite"
-   create_option     = "FromImage"
-   managed_disk_type = "Standard_LRS"
- }
+  os_disk {
+    name                 = "${var.name}-osdisk-${count.index}"
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
 
-os_profile {
-        admin_username = "azureuser"
-        computer_name  = "hostname"
+  disable_password_authentication = true
+
+  admin_ssh_key {
+    username   = var.node_username
+    public_key = ls_private_key.bootstrap_private_key.public_key_openssh
+  }
+
+  tags {
+    K8sRoles = "controlplane,etcd,worker"
+  }
+  
+
+  provisioner "remote-exec" {
+    inline = [
+      "curl -sL https://releases.rancher.com/install-docker/${var.docker_version}.sh | sudo sh",
+      "sudo usermod -aG docker ${var.node_username}"
+    ]
+    connection {
+      host        = self.public_ip_address
+      type        = "ssh"
+      user        = var.node_username
+      private_key = tls_private_key.bootstrap_private_key.private_key_pem
     }
-
-os_profile_linux_config {
-    disable_password_authentication = true
-    ssh_keys {
-            path     = "/home/azureuser/.ssh/authorized_keys"
-            key_data = chomp(tls_private_key.bootstrap_private_key.public_key_openssh)
-        }
-}
+  }
 }

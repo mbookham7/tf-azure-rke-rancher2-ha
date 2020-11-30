@@ -59,8 +59,24 @@ variable "node_all_count" {
   default     = 3
 }
 
+variable "size" {
+  default = "Standard_DS1_v2"
+}
+
 variable "prefix" {
   type        = string
   description = "Prefix added to names of all resources"
   default     = "rancher-infra-azure"
+}
+
+variable "node_username" {
+  type        = string
+  description = "Instance type used for all instances"
+  default     = "ubuntu"
+}
+
+variable "docker_version" {
+  type        = string
+  description = "Docker version to install on nodes"
+  default     = "19.03"
 }
