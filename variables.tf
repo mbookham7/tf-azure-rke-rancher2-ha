@@ -80,3 +80,11 @@ variable "docker_version" {
   description = "Docker version to install on nodes"
   default     = "19.03"
 }
+
+variable "nsg_name" {
+  default = "rancher-nsg"
+}
+
+variable "security_group_id" {
+  default = ""
+}

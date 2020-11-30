@@ -103,6 +103,24 @@ resource "azurerm_lb_probe" "port-443-probe" {
   request_path        = "/healthz"
 }
 
+resource "azurerm_network_security_group" "rke_nsg" {
+  name                = var.nsg_name
+  location            = azurerm_resource_group.resource_group.location
+  resource_group_name = azurerm_resource_group.resource_group.name
+
+  security_rule {
+    name                       = "allow_all"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
 # Create an availibility set
 
 resource "azurerm_availability_set" "avset" {
@@ -156,6 +174,12 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
   backend_address_pool_id = azurerm_lb_backend_address_pool.rancher-backendpool.id
 }
 
+resource "azurerm_network_interface_security_group_association" "nisga-master" {
+  count                     = var.node_master_count
+  network_interface_id      = azurerm_network_interface.network_interfaces_node_master[count.index].id
+  network_security_group_id = var.security_group_id
+}
+
 resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
   count                 = var.node_master_count
   name                  = "${var.prefix}-node-master-${count.index}"
@@ -188,6 +212,7 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_master" {
   }
 
   tags = {
+    Name     = "${var.prefix}-node-master-${count.index}"
     K8sRoles = "controlplane,etcd"
   }
   
@@ -238,6 +263,12 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
   backend_address_pool_id = azurerm_lb_backend_address_pool.rancher-backendpool.id
 }
 
+resource "azurerm_network_interface_security_group_association" "nisga-worker" {
+  count                     = var.node_master_count
+  network_interface_id      = azurerm_network_interface.network_interfaces_node_worker[count.index].id
+  network_security_group_id = var.security_group_id
+}
+
 resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" { 
   count                 = var.node_worker_count
   name                  = "${var.prefix}-node--worker${count.index}"
@@ -270,6 +301,7 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_worker" {
   }
 
   tags = {
+    Name     = "${var.prefix}-node-worker-${count.index}"
     K8sRoles = "worker"
   }
   
@@ -320,6 +352,12 @@ resource "azurerm_network_interface_backend_address_pool_association" "backendpo
   backend_address_pool_id = azurerm_lb_backend_address_pool.rancher-backendpool.id
 }
 
+resource "azurerm_network_interface_security_group_association" "nisga-all" {
+  count                     = var.node_master_count
+  network_interface_id      = azurerm_network_interface.network_interfaces_node_all[count.index].id
+  network_security_group_id = var.security_group_id
+}
+
 resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
   count                 = var.node_all_count
   name                  = "${var.prefix}-node-all-${count.index}"
@@ -352,6 +390,7 @@ resource "azurerm_linux_virtual_machine" "rancher_nodes_all" {
   }
 
   tags = {
+    Name     = "${var.prefix}-node-all-${count.index}"
     K8sRoles = "controlplane,etcd,worker"
   }
   
