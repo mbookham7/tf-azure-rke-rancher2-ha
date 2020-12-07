@@ -1,0 +1,22 @@
+# Outputs
+
+output "rancher_nodes" {
+  value = [
+  	for instance in flatten([[aws_instance.node_all], [aws_instance.node_master], [aws_instance.node_worker]]): {
+    
+    public_ip  = instance.public_ip
+    private_ip = instance.private_ip
+    hostname   = instance.id
+    user       = var.node_username
+    roles      = split(",", instance.tags.K8sRoles)
+    ssh_key    = file(var.ssh_key_file)
+    }
+  ]
+  sensitive = true
+}
+
+
+resource "local_file" "kube_cluster_yaml" {
+  filename = "${path.root}/kube_config_cluster.yml"
+  content  = rke_cluster.rke-cluster.kube_config_yaml
+}
